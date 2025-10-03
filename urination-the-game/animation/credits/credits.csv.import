@@ -1,0 +1,17 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://die20lbuk45eq"
+
+[deps]
+
+files=["res://animation/credits/credits.notes.translation", "res://animation/credits/credits.authors.translation", "res://animation/credits/credits.licenses.translation", "res://animation/credits/credits.urls.translation"]
+
+source_file="res://animation/credits/credits.csv"
+dest_files=["res://animation/credits/credits.notes.translation", "res://animation/credits/credits.authors.translation", "res://animation/credits/credits.licenses.translation", "res://animation/credits/credits.urls.translation"]
+
+[params]
+
+compress=true
+delimiter=0
