@@ -11,3 +11,43 @@ scale = Vector2(2, 2)
 
 [node name="player" parent="." instance=ExtResource("2_gds4p")]
 scale = Vector2(0.92, 0.993)
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="PeePrompt" type="Label" parent="UI"]
+visible = false
+offset_left = 482.0
+offset_top = 238.0
+offset_right = 700.0
+offset_bottom = 265.0
+text = "Appuyez sur \"P\" pour uriner"
+
+[node name="PeeBar" type="ProgressBar" parent="UI"]
+visible = false
+offset_left = 494.0
+offset_top = 443.0
+offset_right = 717.0
+offset_bottom = 470.0
+
+[node name="MainBar" type="ProgressBar" parent="UI"]
+anchors_preset = -1
+anchor_left = 0.092
+anchor_top = 0.282
+anchor_right = 0.092
+anchor_bottom = 0.282
+offset_left = 149.016
+offset_top = -90.736
+offset_right = 821.016
+offset_bottom = -63.736
+
+[node name="WinLabel" type="Label" parent="UI"]
+anchors_preset = -1
+anchor_left = 0.085
+anchor_top = 0.209
+anchor_right = 0.176
+anchor_bottom = 0.315
+offset_left = 281.08
+offset_top = 68.568
+offset_right = 240.248
+offset_bottom = 26.88
+text = "Victoire!"
