@@ -20,7 +20,6 @@ scale = Vector2(0.92, 0.993)
 
 [node name="PauseMenu" type="Control" parent="CanvasLayer"]
 process_mode = 3
-visible = false
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -31,8 +30,10 @@ script = ExtResource("4_pjyst")
 
 [node name="ColorRect" type="ColorRect" parent="CanvasLayer/PauseMenu"]
 layout_mode = 0
-offset_right = 1153.0
-offset_bottom = 645.0
+offset_left = -325.0
+offset_top = -235.0
+offset_right = 1154.0
+offset_bottom = 647.0
 color = Color(0, 0, 0, 0.784314)
 
 [node name="Panel" type="Panel" parent="CanvasLayer/PauseMenu"]
