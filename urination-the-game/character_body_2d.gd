@@ -1,143 +1,121 @@
 extends CharacterBody2D
 
-# === Nodes ===
-@onready var trees_tilemap = get_node("/root/Game/Map/TileMapLayer2")
-@onready var main_bar = get_node("/root/Game/UI/MainBar")
-@onready var win_label = get_node("/root/Game/UI/WinLabel")
+@onready var animation: AnimatedSprite2D = $AnimatedSprite2D
+@onready var pee_particles: GPUParticles2D = $PeeParticles
+@onready var cam: Camera2D = get_node_or_null("Camera2D")
+@onready var pee_sound: AudioStreamPlayer2D = $PeeSound
+@onready var drink_sound: AudioStreamPlayer2D = $DrinkSound 
+@onready var boost_timer: Timer = $BoostTimer
 
-@onready var animation = $AnimatedSprite2D
-@onready var camera = $Camera2D
-@onready var pee_prompt = get_node("/root/Game/UI/PeePrompt")
-@onready var pee_bar = get_node("/root/Game/UI/PeeBar")
-@onready var pee_sound = $PeeSound if has_node("PeeSound") else null
 
-# === Movement ===
-const SPEED = 300
-var direction_name = "bas"
+const SPEED_BASE := 150.0
+var speed := SPEED_BASE
+var speed_boost := 1.15   
+var boost_seconds := 60.0
 
-# === Pee logic ===
-var can_pee = false
-var peeing = false
-var pee_timer = 0.0
-var pee_time = 2.0
-var total_pees = 0
-var pee_position = Vector2.ZERO
 
-# === Ready ===
-func _ready():
-	if pee_prompt:
-		pee_prompt.visible = false
-	if pee_bar:
-		pee_bar.visible = false
-	if win_label:
-		win_label.visible = false
-	if main_bar:
-		main_bar.value = 0
+@export var items_layer_path: NodePath
+@onready var items_layer: TileMapLayer = get_tree().get_first_node_in_group("items_layer")
 
-# === Physics ===
-func _physics_process(delta):
-	if not peeing:
-		_handle_movement(delta)
+# le zoom
+var zoom_default := Vector2(1.0, 1.0)
+var zoom_peeing  := Vector2(1.4, 1.4)
+var _zoom_tween: Tween
+var direction_name := "bas"
 
-	_check_near_tree()
+func _ready() -> void:
+	pee_particles.emitting = false
+	if cam: cam.zoom = zoom_default
 
-	if can_pee and Input.is_action_just_pressed("pee") and not peeing:
-		start_peeing()
+	if pee_particles.process_material == null:
+		var new_mat := ParticleProcessMaterial.new()
+		pee_particles.process_material = new_mat
+	var mat := pee_particles.process_material as ParticleProcessMaterial
+	mat.gravity = Vector3(0, 0, 0)
+	mat.spread = 5.0
+	mat.initial_velocity_min = 65.0
+	mat.initial_velocity_max = 65.0
 
-	if peeing:
-		pee_timer += delta
-		if pee_bar:
-			pee_bar.value = clamp((pee_timer / pee_time) * 100, 0, 100)
-		if pee_timer >= pee_time:
-			finish_peeing()
+	boost_timer.one_shot = true
+	boost_timer.timeout.connect(_on_boost_timeout)
 
-# === Movement ===
-func _handle_movement(delta):
-	var input_dir = Vector2(
-		Input.get_axis("gauche", "droite"),
-		Input.get_axis("haut", "bas")
-	)
+func _unhandled_input(event: InputEvent) -> void:
+	if Input.is_action_just_pressed("pee"):
+		_set_zoom(true)
+		_start_peeing()
+	elif Input.is_action_just_released("pee"):
+		_set_zoom(false)
+		_stop_peeing()
 
-	if input_dir != Vector2.ZERO:
-		velocity = input_dir.normalized() * SPEED
-		if abs(input_dir.x) > abs(input_dir.y):
-			direction_name = "droite" if input_dir.x > 0 else "gauche"
-		else:
-			direction_name = "haut" if input_dir.y < 0 else "bas"
-		if animation:
-			animation.play("animation_" + direction_name)
+func _set_zoom(zoom_in: bool) -> void:
+	if not cam:
+		return
+	if _zoom_tween and _zoom_tween.is_running():
+		_zoom_tween.kill()
+	_zoom_tween = get_tree().create_tween()
+	_zoom_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_zoom_tween.tween_property(cam, "zoom", zoom_peeing if zoom_in else zoom_default, 0.2)
+
+func _start_peeing() -> void:
+	pee_particles.emitting = true
+	if pee_sound and not pee_sound.playing:
+		pee_sound.play()
+
+func _stop_peeing() -> void:
+	pee_particles.emitting = false
+	if pee_sound and pee_sound.playing:
+		pee_sound.stop()
+
+func _physics_process(delta: float) -> void:
+	
+	var direction = Vector2(Input.get_axis("gauche", "droite"), Input.get_axis("haut", "bas"))
+	if direction != Vector2.ZERO:
+		velocity = direction.normalized() * speed
 	else:
 		velocity = Vector2.ZERO
-		if animation:
-			if direction_name == "haut":
-				animation.play("animation_idle")
-			else:
-				animation.play("animation_" + direction_name)
+
+   
+	if direction != Vector2.ZERO:
+		if abs(direction.x) > abs(direction.y):
+			direction_name = "droite" if direction.x > 0 else "gauche"
+		else:
+			direction_name = "haut" if direction.y < 0 else "bas"
+
+	# Animation
+	if direction == Vector2.ZERO:
+		animation.play("animation_idle_" + direction_name)
+	else:
+		animation.play("animation_" + direction_name)
 
 	move_and_slide()
 
-# === Check nearby tree ===
-func _check_near_tree():
-	can_pee = false
-	if trees_tilemap == null:
+	
+	var mat := pee_particles.process_material as ParticleProcessMaterial
+	if pee_particles.emitting and mat:
+		match direction_name:
+			"haut": mat.direction = Vector3(0, -1, 0)
+			"bas": mat.direction = Vector3(0, 1, 0)
+			"gauche": mat.direction = Vector3(-1, 0, 0)
+			"droite": mat.direction = Vector3(1, 0, 0)
+
+	
+	_check_drink_pickup()
+
+func _check_drink_pickup() -> void:
+	if not items_layer:
 		return
-	var player_tile = trees_tilemap.world_to_map(global_position)
+	var map_pos: Vector2i = items_layer.local_to_map(items_layer.to_local(global_position))
+	var tile_data := items_layer.get_cell_tile_data(map_pos)
+	if tile_data:
 
-	# Check 3x3 tiles
-	for x in range(-1, 2):
-		for y in range(-1, 2):
-			var tile = trees_tilemap.get_cell(player_tile.x + x, player_tile.y + y)
-			if tile != -1:
-				can_pee = true
-				pee_position = trees_tilemap.map_to_world(player_tile + Vector2(x, y)) + trees_tilemap.cell_size / 2
-				break
+		items_layer.erase_cell(map_pos)  
+		_apply_speed_boost()
 
-	if pee_prompt:
-		pee_prompt.visible = can_pee
+func _apply_speed_boost() -> void:
+	if drink_sound:
+		drink_sound.play()
+	speed *= speed_boost   
+	boost_timer.start(boost_seconds)
 
-# === Start peeing ===
-func start_peeing():
-	peeing = true
-	velocity = Vector2.ZERO
-	if pee_prompt:
-		pee_prompt.visible = false
-	pee_timer = 0.0
-	if pee_bar:
-		pee_bar.value = 0
-		pee_bar.visible = true
-	if pee_sound:
-		pee_sound.play()
-	if camera:
-		camera.global_position = pee_position
-		camera.zoom = Vector2(0.5, 0.5)
-
-# === Finish peeing ===
-func finish_peeing():
-	peeing = false
-	if pee_bar:
-		pee_bar.visible = false
-	if pee_sound:
-		pee_sound.stop()
-	if camera:
-		camera.zoom = Vector2(1, 1)
-	total_pees += 1
-	if main_bar:
-		main_bar.value = clamp((total_pees / 5) * 100, 0, 100)
-
-	if total_pees >= 5:
-		show_win_message()
-		reset_game()
-
-# === Show win ===
-func show_win_message():
-	if win_label:
-		win_label.visible = true
-		await get_tree().create_timer(2.0).timeout
-		win_label.visible = false
-
-# === Reset ===
-func reset_game():
-	global_position = Vector2(100, 100)
-	total_pees = 0
-	if main_bar:
-		main_bar.value = 0
+func _on_boost_timeout() -> void:
+	speed = SPEED_BASE

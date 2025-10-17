@@ -1,8 +1,10 @@
-[gd_scene load_steps=44 format=3 uid="uid://b7lmcokdiayci"]
+[gd_scene load_steps=49 format=3 uid="uid://b7lmcokdiayci"]
 
 [ext_resource type="Texture2D" uid="uid://368wsshhagea" path="res://animation/standard/walk.png" id="1_4flbx"]
 [ext_resource type="Script" uid="uid://dohprnwxbq2p6" path="res://character_body_2d.gd" id="1_onrkg"]
 [ext_resource type="Texture2D" uid="uid://flw5hatrdrfr" path="res://animation/standard/idle.png" id="3_i3pqv"]
+[ext_resource type="AudioStream" uid="uid://chehfetd78xtc" path="res://assets/sons/peeing.wav" id="4_hqtel"]
+[ext_resource type="AudioStream" uid="uid://c84bkqp57yqf5" path="res://assets/sons/drink.mp3" id="5_sweqy"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_onrkg"]
 atlas = ExtResource("1_4flbx")
@@ -150,7 +152,15 @@ region = Rect2(512, 0, 64, 64)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_b88wv"]
 atlas = ExtResource("3_i3pqv")
-region = Rect2(0, 0, 64, 64)
+region = Rect2(64, 128, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_331ug"]
+atlas = ExtResource("3_i3pqv")
+region = Rect2(64, 192, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ny14h"]
+atlas = ExtResource("3_i3pqv")
+region = Rect2(64, 64, 64, 64)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_pgbbb"]
 atlas = ExtResource("3_i3pqv")
@@ -289,12 +299,33 @@ animations = [{
 "frames": [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_b88wv")
+}],
+"loop": true,
+"name": &"animation_idle_bas",
+"speed": 5.0
 }, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_331ug")
+}],
+"loop": true,
+"name": &"animation_idle_droite",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ny14h")
+}],
+"loop": true,
+"name": &"animation_idle_gauche",
+"speed": 5.0
+}, {
+"frames": [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_pgbbb")
 }],
 "loop": true,
-"name": &"animation_idle",
+"name": &"animation_idle_haut",
 "speed": 5.0
 }, {
 "frames": [],
@@ -306,6 +337,12 @@ animations = [{
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_i3pqv"]
 size = Vector2(26, 16)
 
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_pgbbb"]
+particle_flag_disable_z = true
+gravity = Vector3(0, 98, 0)
+scale_min = 1.5
+scale_max = 1.5
+
 [node name="Node2D" type="Node2D"]
 
 [node name="CharacterBody2D" type="CharacterBody2D" parent="."]
@@ -314,8 +351,22 @@ script = ExtResource("1_onrkg")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="CharacterBody2D"]
 scale = Vector2(1.1, 1.1)
 sprite_frames = SubResource("SpriteFrames_b88wv")
-animation = &"animation_idle"
+animation = &"animation_idle_droite"
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="CharacterBody2D"]
 position = Vector2(0, 22)
 shape = SubResource("RectangleShape2D_i3pqv")
+
+[node name="PeeParticles" type="GPUParticles2D" parent="CharacterBody2D"]
+position = Vector2(0, 22)
+process_material = SubResource("ParticleProcessMaterial_pgbbb")
+
+[node name="Camera2D" type="Camera2D" parent="CharacterBody2D"]
+
+[node name="PeeSound" type="AudioStreamPlayer2D" parent="CharacterBody2D"]
+stream = ExtResource("4_hqtel")
+
+[node name="DrinkSound" type="AudioStreamPlayer2D" parent="CharacterBody2D"]
+stream = ExtResource("5_sweqy")
+
+[node name="BoostTimer" type="Timer" parent="CharacterBody2D"]
