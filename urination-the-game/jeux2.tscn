@@ -1,10 +1,10 @@
-[gd_scene load_steps=8 format=3 uid="uid://b0blaxescvms5"]
+[gd_scene load_steps=8 format=3 uid="uid://rvwld477qpd3"]
 
-[ext_resource type="PackedScene" uid="uid://pmgb7vkmtwok" path="res://map.tscn" id="1_nlqxw"]
-[ext_resource type="PackedScene" uid="uid://b7lmcokdiayci" path="res://player.tscn" id="2_gds4p"]
-[ext_resource type="Script" uid="uid://dsroolp4wmcoi" path="res://PauseMenu.gd" id="4_pjyst"]
-[ext_resource type="Script" uid="uid://shmpy6qw52qm" path="res://game_over_menu.gd" id="4_ug0qv"]
-[ext_resource type="Script" uid="uid://bytp012naj80a" path="res://win_menu.gd" id="5_pjyst"]
+[ext_resource type="PackedScene" uid="uid://pmgb7vkmtwok" path="res://map.tscn" id="1_8wb7p"]
+[ext_resource type="PackedScene" uid="uid://b7lmcokdiayci" path="res://player.tscn" id="2_sethn"]
+[ext_resource type="Script" uid="uid://dsroolp4wmcoi" path="res://PauseMenu.gd" id="3_0m56r"]
+[ext_resource type="Script" uid="uid://shmpy6qw52qm" path="res://game_over_menu.gd" id="4_m5yox"]
+[ext_resource type="Script" uid="uid://bytp012naj80a" path="res://win_menu.gd" id="5_k218v"]
 
 [sub_resource type="GDScript" id="GDScript_pjyst"]
 script/source = "extends Node
@@ -159,11 +159,16 @@ bg_color = Color(0.721509, 0.585434, 0, 1)
 position = Vector2(250, 90)
 script = SubResource("GDScript_pjyst")
 
-[node name="map" parent="." instance=ExtResource("1_nlqxw")]
+[node name="map" parent="." instance=ExtResource("1_8wb7p")]
+visible = false
 position = Vector2(-17, 6)
 scale = Vector2(2, 2)
 
-[node name="player" parent="." groups=["Player"] instance=ExtResource("2_gds4p")]
+[node name="map2" parent="." instance=ExtResource("1_8wb7p")]
+position = Vector2(-17, 6)
+scale = Vector2(2, 2)
+
+[node name="player" parent="." groups=["Player"] instance=ExtResource("2_sethn")]
 scale = Vector2(0.92, 0.993)
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
@@ -176,7 +181,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("4_pjyst")
+script = ExtResource("3_0m56r")
 
 [node name="ColorRect" type="ColorRect" parent="CanvasLayer/PauseMenu"]
 layout_mode = 0
@@ -217,7 +222,7 @@ offset_right = 20.0
 offset_bottom = 20.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("4_ug0qv")
+script = ExtResource("4_m5yox")
 
 [node name="Panel" type="Panel" parent="CanvasLayer/GameOverMenu"]
 layout_mode = 1
@@ -274,7 +279,7 @@ layout_mode = 3
 anchors_preset = 0
 offset_right = 1394.0
 offset_bottom = 782.0
-script = ExtResource("5_pjyst")
+script = ExtResource("5_k218v")
 
 [node name="Panel" type="Panel" parent="CanvasLayer/WinMenu"]
 layout_mode = 1

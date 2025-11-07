@@ -1,30 +1,53 @@
 extends CharacterBody2D
 
+signal pee_amount_changed(amount: float)
+signal score_changed(score: int)
+
 @onready var animation: AnimatedSprite2D = $AnimatedSprite2D
 @onready var pee_particles: GPUParticles2D = $PeeParticles
 @onready var cam: Camera2D = get_node_or_null("Camera2D")
 @onready var pee_sound: AudioStreamPlayer2D = $PeeSound
-@onready var drink_sound: AudioStreamPlayer2D = $DrinkSound 
+@onready var drink_sound: AudioStreamPlayer2D = $DrinkSound
 @onready var boost_timer: Timer = $BoostTimer
-
 
 const SPEED_BASE := 150.0
 var speed := SPEED_BASE
-var speed_boost := 1.15   
+var speed_boost := 1.15
 var boost_seconds := 60.0
 
+# gauge
+const PEE_MAX := 100.0
+var pee_amount := 50.0
+var pee_drain_rate := 20.0
+var pee_gain_per_drink := 30.0
 
+# Particles speed 
+var pee_speed_scale_base := 1.0
+var pee_speed_scale_boost := 1.6
+
+# layersd
 @export var items_layer_path: NodePath
 @onready var items_layer: TileMapLayer = get_tree().get_first_node_in_group("items_layer")
+@onready var trees_layer: TileMapLayer = get_tree().get_first_node_in_group("trees_layer")
 
-# le zoom
+# zoom
 var zoom_default := Vector2(1.0, 1.0)
 var zoom_peeing  := Vector2(1.4, 1.4)
 var _zoom_tween: Tween
 var direction_name := "bas"
 
+# Score
+var score: int = 0
+
+# piss→touche arbre points
+var _pee_hit_accum := 0.0
+var _points_per_chunk := 1                 # cmb de points par chunk
+var _seconds_per_point := 0.30             # temp pr pisser pr avoir point
+var _hit_distance := 18.0                  
+
 func _ready() -> void:
 	pee_particles.emitting = false
+	pee_particles.speed_scale = pee_speed_scale_base
 	if cam: cam.zoom = zoom_default
 
 	if pee_particles.process_material == null:
@@ -39,6 +62,9 @@ func _ready() -> void:
 	boost_timer.one_shot = true
 	boost_timer.timeout.connect(_on_boost_timeout)
 
+	pee_amount_changed.emit(pee_amount)
+	score_changed.emit(score)
+
 func _unhandled_input(event: InputEvent) -> void:
 	if Input.is_action_just_pressed("pee"):
 		_set_zoom(true)
@@ -48,8 +74,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_stop_peeing()
 
 func _set_zoom(zoom_in: bool) -> void:
-	if not cam:
-		return
+	if not cam: return
 	if _zoom_tween and _zoom_tween.is_running():
 		_zoom_tween.kill()
 	_zoom_tween = get_tree().create_tween()
@@ -57,6 +82,7 @@ func _set_zoom(zoom_in: bool) -> void:
 	_zoom_tween.tween_property(cam, "zoom", zoom_peeing if zoom_in else zoom_default, 0.2)
 
 func _start_peeing() -> void:
+	if pee_amount <= 0.0: return
 	pee_particles.emitting = true
 	if pee_sound and not pee_sound.playing:
 		pee_sound.play()
@@ -67,14 +93,12 @@ func _stop_peeing() -> void:
 		pee_sound.stop()
 
 func _physics_process(delta: float) -> void:
-	
 	var direction = Vector2(Input.get_axis("gauche", "droite"), Input.get_axis("haut", "bas"))
 	if direction != Vector2.ZERO:
 		velocity = direction.normalized() * speed
 	else:
 		velocity = Vector2.ZERO
 
-   
 	if direction != Vector2.ZERO:
 		if abs(direction.x) > abs(direction.y):
 			direction_name = "droite" if direction.x > 0 else "gauche"
@@ -89,17 +113,65 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 
-	
+	# directions piss
 	var mat := pee_particles.process_material as ParticleProcessMaterial
 	if pee_particles.emitting and mat:
 		match direction_name:
-			"haut": mat.direction = Vector3(0, -1, 0)
-			"bas": mat.direction = Vector3(0, 1, 0)
+			"haut":   mat.direction = Vector3(0, -1, 0)
+			"bas":    mat.direction = Vector3(0,  1, 0)
 			"gauche": mat.direction = Vector3(-1, 0, 0)
-			"droite": mat.direction = Vector3(1, 0, 0)
+			"droite": mat.direction = Vector3( 1, 0, 0)
 
-	
+	# diminue qt de pisse quand piss
+	if pee_particles.emitting:
+		var old := pee_amount
+		pee_amount = clamp(pee_amount - pee_drain_rate * delta, 0.0, PEE_MAX)
+		if pee_amount != old:
+			pee_amount_changed.emit(pee_amount)
+		if pee_amount <= 0.0:
+			_set_zoom(false)
+			_stop_peeing()
+
+	# Score quand piss sur arbre
+	_check_tree_peeing(delta)
+
+	# items
 	_check_drink_pickup()
+
+func _front_point() -> Vector2:
+	var dir: Vector2
+	match direction_name:
+		"haut":
+			dir = Vector2(0, -1)
+		"bas":
+			dir = Vector2(0, 1)
+		"gauche":
+			dir = Vector2(-1, 0)
+		"droite":
+			dir = Vector2(1, 0)
+		_:
+			dir = Vector2(0, 1)
+	return global_position + dir * _hit_distance
+
+
+func _check_tree_peeing(delta: float) -> void:
+	if not pee_particles.emitting: 
+		_pee_hit_accum = 0.0
+		return
+	if trees_layer == null:
+		return
+	var p := _front_point()
+	var map_pos: Vector2i = trees_layer.local_to_map(trees_layer.to_local(p))
+	var tile_data := trees_layer.get_cell_tile_data(map_pos)
+	if tile_data:
+		# accumulate faster when particles are boosted
+		_pee_hit_accum += delta * pee_particles.speed_scale
+		if _pee_hit_accum >= _seconds_per_point:
+			score += _points_per_chunk
+			score_changed.emit(score)
+			_pee_hit_accum = 0.0
+	else:
+		_pee_hit_accum = 0.0
 
 func _check_drink_pickup() -> void:
 	if not items_layer:
@@ -107,15 +179,24 @@ func _check_drink_pickup() -> void:
 	var map_pos: Vector2i = items_layer.local_to_map(items_layer.to_local(global_position))
 	var tile_data := items_layer.get_cell_tile_data(map_pos)
 	if tile_data:
-
-		items_layer.erase_cell(map_pos)  
+		items_layer.erase_cell(map_pos)
 		_apply_speed_boost()
 
 func _apply_speed_boost() -> void:
 	if drink_sound:
 		drink_sound.play()
-	speed *= speed_boost   
+	# plus vite
+	speed *= speed_boost
+	# piss plus vite
+	pee_particles.speed_scale = pee_speed_scale_boost
+	# refill
+	var old := pee_amount
+	pee_amount = clamp(pee_amount + pee_gain_per_drink, 0.0, PEE_MAX)
+	if pee_amount != old:
+		pee_amount_changed.emit(pee_amount)
+	# Start/refresh boost timer
 	boost_timer.start(boost_seconds)
 
 func _on_boost_timeout() -> void:
 	speed = SPEED_BASE
+	pee_particles.speed_scale = pee_speed_scale_base
