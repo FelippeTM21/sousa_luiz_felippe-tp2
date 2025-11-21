@@ -1,9 +1,9 @@
 [gd_scene load_steps=8 format=3 uid="uid://b0blaxescvms5"]
 
+[ext_resource type="PackedScene" uid="uid://pmgb7vkmtwok" path="res://map.tscn" id="1_nlqxw"]
 [ext_resource type="PackedScene" uid="uid://b7lmcokdiayci" path="res://player.tscn" id="2_gds4p"]
 [ext_resource type="Script" uid="uid://dsroolp4wmcoi" path="res://PauseMenu.gd" id="4_pjyst"]
 [ext_resource type="Script" uid="uid://shmpy6qw52qm" path="res://game_over_menu.gd" id="4_ug0qv"]
-[ext_resource type="PackedScene" uid="uid://x2fl2cn8hq1w" path="res://map2.tscn" id="5_aepv3"]
 [ext_resource type="Script" uid="uid://bytp012naj80a" path="res://win_menu.gd" id="5_pjyst"]
 
 [sub_resource type="GDScript" id="GDScript_pjyst"]
@@ -28,6 +28,11 @@ var has_won: bool = false
 var door_unlocked: bool = false
 var door_layer: Node = null
 
+var toilet_layer: TileMapLayer = null
+var toilet_world_pos: Vector2 = Vector2.ZERO
+var toilet_pos_valid: bool = false
+var toilet_hint_radius: float = 32.0
+
 func _ready() -> void:
 	# Menus
 	pause_menu.resume_requested.connect(_resume_game)
@@ -46,10 +51,14 @@ func _ready() -> void:
 	_update_timer_label()
 
 	_style_hud()
+
 	toilet_hint.visible = false
 
-	door_layer = get_tree().get_first_node_in_group(\"door_layer\")
 	_find_player_and_hook()
+
+	door_layer = get_tree().get_first_node_in_group(\"door_layer\")
+	toilet_layer = get_tree().get_first_node_in_group(\"toilet_layer\")
+	_compute_toilet_position()
 
 func _process(_delta: float) -> void:
 	if player == null:
@@ -152,8 +161,7 @@ func _set_hud_visible(v: bool) -> void:
 	timer_label.visible = v
 	pee_gauge.visible = v
 	score_label.visible = v
-	if not v:
-		toilet_hint.visible = false
+	toilet_hint.visible = false if not v else toilet_hint.visible
 
 func _restart_game() -> void:
 	get_tree().paused = false
@@ -168,40 +176,44 @@ func _on_toilet_finished() -> void:
 	if not has_won:
 		_trigger_win()
 
+# ---------- Toilet hint helpers ----------
+
+func _compute_toilet_position() -> void:
+	toilet_pos_valid = false
+	if toilet_layer == null:
+		return
+	var cells := toilet_layer.get_used_cells() # all used tiles on this layer
+	if cells.size() == 0:
+		return
+	var cell: Vector2i = cells[0] # assume only one toilet
+	var local_pos: Vector2 = toilet_layer.map_to_local(cell)
+	toilet_world_pos = toilet_layer.to_global(local_pos)
+	toilet_pos_valid = true
 
 func _check_toilet_hint() -> void:
-
-	if player == null or not door_unlocked:
+	if not door_unlocked or not toilet_pos_valid or player == null:
 		toilet_hint.visible = false
 		return
+
 	if \"using_toilet\" in player and player.using_toilet:
 		toilet_hint.visible = false
 		return
 
-	
-	var toilet_layer := get_tree().get_first_node_in_group(\"toilet_layer\")
-	if toilet_layer == null:
-		toilet_hint.visible = false
-		return
-
-	
-	var player_pos: Vector2 = player.global_position
-	var map_pos: Vector2i = toilet_layer.local_to_map(toilet_layer.to_local(player_pos))
-	var tile_data: Variant = toilet_layer.get_cell_tile_data(map_pos)
-
-	if tile_data != null:
+	var dist: float = player.global_position.distance_to(toilet_world_pos)
+	if dist <= toilet_hint_radius:
 		toilet_hint.visible = true
-		toilet_hint.text = \"Appuyez sur C\"
+		toilet_hint.text = \"Appuyer sur C pour faire caca\"
 	else:
 		toilet_hint.visible = false
 
 
+# ---------- HUD style (same as before) ----------
 func _style_hud() -> void:
 	var ls := LabelSettings.new()
 	ls.font_size = 28
-	ls.font_color = Color(1, 1, 1)
+	ls.font_color = Color(1,1,1)
 	ls.outline_size = 4
-	ls.outline_color = Color(0, 0, 0, 0.85)
+	ls.outline_color = Color(0,0,0,0.85)
 	timer_label.label_settings = ls
 	score_label.label_settings = ls
 	toilet_hint.label_settings = ls
@@ -213,10 +225,10 @@ bg_color = Color(0.721509, 0.585434, 0, 1)
 [node name="jeux" type="Node2D"]
 position = Vector2(250, 90)
 script = SubResource("GDScript_pjyst")
-next_scene = "uid://dc8jxhvjtrfs3"
 
-[node name="Node2D" parent="." instance=ExtResource("5_aepv3")]
-scale = Vector2(1.8, 1.8)
+[node name="map" parent="." instance=ExtResource("1_nlqxw")]
+position = Vector2(-17, 6)
+scale = Vector2(2, 2)
 
 [node name="player" parent="." groups=["Player"] instance=ExtResource("2_gds4p")]
 scale = Vector2(0.92, 0.993)
@@ -359,8 +371,9 @@ layout_mode = 2
 text = "Prochain Niveau"
 
 [node name="ToiletHint" type="Label" parent="CanvasLayer"]
-offset_left = 418.0
-offset_top = 241.0
-offset_right = 661.0
-offset_bottom = 264.0
-text = "Appuyez sur \"C\" "
+visible = false
+offset_left = 477.0
+offset_top = 271.0
+offset_right = 720.0
+offset_bottom = 294.0
+text = "Appuyez sur \"C\" pour faire caca"

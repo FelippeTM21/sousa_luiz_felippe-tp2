@@ -1,10 +1,11 @@
-[gd_scene load_steps=49 format=3 uid="uid://b7lmcokdiayci"]
+[gd_scene load_steps=50 format=3 uid="uid://b7lmcokdiayci"]
 
 [ext_resource type="Texture2D" uid="uid://368wsshhagea" path="res://animation/standard/walk.png" id="1_4flbx"]
 [ext_resource type="Script" uid="uid://dohprnwxbq2p6" path="res://character_body_2d.gd" id="1_onrkg"]
 [ext_resource type="Texture2D" uid="uid://flw5hatrdrfr" path="res://animation/standard/idle.png" id="3_i3pqv"]
 [ext_resource type="AudioStream" uid="uid://chehfetd78xtc" path="res://assets/sons/peeing.wav" id="4_hqtel"]
 [ext_resource type="AudioStream" uid="uid://c84bkqp57yqf5" path="res://assets/sons/drink.mp3" id="5_sweqy"]
+[ext_resource type="AudioStream" uid="uid://db32xk2gtqgft" path="res://assets/sons/son_caca.mp3" id="6_2hs0m"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_onrkg"]
 atlas = ExtResource("1_4flbx")
@@ -370,3 +371,9 @@ stream = ExtResource("4_hqtel")
 stream = ExtResource("5_sweqy")
 
 [node name="BoostTimer" type="Timer" parent="CharacterBody2D"]
+
+[node name="PoopSound" type="AudioStreamPlayer2D" parent="CharacterBody2D"]
+stream = ExtResource("6_2hs0m")
+
+[node name="ToiletTimer" type="Timer" parent="CharacterBody2D"]
+one_shot = true

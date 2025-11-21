@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://rvwld477qpd3"]
+[gd_scene load_steps=8 format=3 uid="uid://dc8jxhvjtrfs3"]
 
 [ext_resource type="PackedScene" uid="uid://pmgb7vkmtwok" path="res://map.tscn" id="1_8wb7p"]
 [ext_resource type="PackedScene" uid="uid://b7lmcokdiayci" path="res://player.tscn" id="2_sethn"]
@@ -9,28 +9,32 @@
 [sub_resource type="GDScript" id="GDScript_pjyst"]
 script/source = "extends Node
 
+@export var SCORE_GOAL: int = 50
+@export_file(\"*.tscn\") var next_scene: String = \"\"
+
 @onready var pause_menu: Control = $CanvasLayer/PauseMenu
 @onready var game_over_menu: Control = $CanvasLayer/GameOverMenu
 @onready var win_menu: Control = $CanvasLayer/WinMenu
 @onready var timer_label: Label = $CanvasLayer/TimerLabel
 @onready var pee_gauge: ProgressBar = $CanvasLayer/PeeGauge
 @onready var score_label: Label = $CanvasLayer/ScoreLabel
+@onready var toilet_hint: Label = $CanvasLayer/ToiletHint
 
 var player: Node = null
 var game_timer: Timer
-var time_left := 60.0
+var time_left: float = 60.0
+var has_won: bool = false
 
-const SCORE_GOAL := 50
-var has_won := false
+var door_unlocked: bool = false
+var door_layer: Node = null
 
 func _ready() -> void:
 	# Menus
 	pause_menu.resume_requested.connect(_resume_game)
 	pause_menu.restart_requested.connect(_restart_game)
-	game_over_menu.connect(\"respawn_requested\", _restart_game)
-	game_over_menu.connect(\"next_requested\", _on_next_level_requested)
-	win_menu.connect(\"respawn_requested\", _restart_game)
-	win_menu.connect(\"next_requested\", _on_next_level_requested)
+	game_over_menu.respawn_requested.connect(_restart_game)
+	win_menu.respawn_requested.connect(_restart_game)
+	win_menu.next_requested.connect(_on_next_level_requested)
 
 	# Timer
 	game_timer = Timer.new()
@@ -41,20 +45,25 @@ func _ready() -> void:
 	game_timer.start()
 	_update_timer_label()
 
-	# HUD style (optional)
 	_style_hud()
+	toilet_hint.visible = false
 
+	door_layer = get_tree().get_first_node_in_group(\"door_layer\")
 	_find_player_and_hook()
 
 func _process(_delta: float) -> void:
 	if player == null:
 		_find_player_and_hook()
+	_check_toilet_hint()
 
 func _find_player_and_hook() -> void:
-	if player != null: return
+	if player != null:
+		return
+
 	player = get_tree().get_first_node_in_group(\"player\")
 	if player == null and get_tree().current_scene:
 		player = get_tree().current_scene.find_child(\"CharacterBody2D\", true, false)
+
 	if player:
 		pee_gauge.min_value = 0
 		pee_gauge.max_value = 100
@@ -63,22 +72,33 @@ func _find_player_and_hook() -> void:
 		if player.has_signal(\"pee_amount_changed\"):
 			player.connect(\"pee_amount_changed\", _on_pee_amount_changed)
 
-		_update_score_label(player.score if \"score\" in player else 0)
+		var s: int = 0
+		if \"score\" in player:
+			s = player.score
+		_update_score_label(s)
 		if player.has_signal(\"score_changed\"):
 			player.connect(\"score_changed\", _on_score_changed)
+
+		if player.has_signal(\"toilet_finished\"):
+			player.connect(\"toilet_finished\", _on_toilet_finished)
 
 func _on_pee_amount_changed(v: float) -> void:
 	pee_gauge.value = v
 
 func _on_score_changed(s: int) -> void:
 	_update_score_label(s)
-	if not has_won and s >= SCORE_GOAL:
-		_trigger_win()
+	if not door_unlocked and s >= SCORE_GOAL:
+		_unlock_door()
+
+func _unlock_door() -> void:
+	door_unlocked = true
+	if door_layer and door_layer.has_method(\"clear\"):
+		door_layer.clear() # remove all door tiles
 
 func _on_timer_tick() -> void:
 	time_left -= 1.0
 	_update_timer_label()
-	if time_left <= 0:
+	if time_left <= 0.0:
 		game_timer.stop()
 		if _is_won():
 			_trigger_win()
@@ -86,14 +106,14 @@ func _on_timer_tick() -> void:
 			_show_game_over()
 
 func _is_won() -> bool:
-	if has_won: return true
+	if has_won:
+		return true
 	if player and \"score\" in player:
 		return player.score >= SCORE_GOAL
 	return false
 
 func _trigger_win() -> void:
 	has_won = true
-	game_timer.stop()
 	get_tree().paused = true
 	_set_hud_visible(false)
 	win_menu.open()
@@ -104,9 +124,9 @@ func _show_game_over() -> void:
 	game_over_menu.open()
 
 func _update_timer_label() -> void:
-	var minutes = int(time_left) / 60
-	var seconds = int(time_left) % 60
-	timer_label.text = \"⏱  %d:%02d\" % [minutes, seconds]
+	var minutes: int = int(time_left) / 60
+	var seconds: int = int(time_left) % 60
+	timer_label.text = \"%d:%02d\" % [minutes, seconds]
 
 func _update_score_label(s: int) -> void:
 	score_label.text = \"⭐ %d / %d\" % [s, SCORE_GOAL]
@@ -132,24 +152,59 @@ func _set_hud_visible(v: bool) -> void:
 	timer_label.visible = v
 	pee_gauge.visible = v
 	score_label.visible = v
+	if not v:
+		toilet_hint.visible = false
 
 func _restart_game() -> void:
 	get_tree().paused = false
 	get_tree().reload_current_scene()
 
 func _on_next_level_requested() -> void:
-	# placeholder
-	pass
+	if next_scene != \"\":
+		get_tree().paused = false
+		get_tree().change_scene_to_file(next_scene)
 
-# ---------- (optional) simple HUD style ----------
+func _on_toilet_finished() -> void:
+	if not has_won:
+		_trigger_win()
+
+
+func _check_toilet_hint() -> void:
+
+	if player == null or not door_unlocked:
+		toilet_hint.visible = false
+		return
+	if \"using_toilet\" in player and player.using_toilet:
+		toilet_hint.visible = false
+		return
+
+	
+	var toilet_layer := get_tree().get_first_node_in_group(\"toilet_layer\")
+	if toilet_layer == null:
+		toilet_hint.visible = false
+		return
+
+	
+	var player_pos: Vector2 = player.global_position
+	var map_pos: Vector2i = toilet_layer.local_to_map(toilet_layer.to_local(player_pos))
+	var tile_data: Variant = toilet_layer.get_cell_tile_data(map_pos)
+
+	if tile_data != null:
+		toilet_hint.visible = true
+		toilet_hint.text = \"Appuyez sur C\"
+	else:
+		toilet_hint.visible = false
+
+
 func _style_hud() -> void:
 	var ls := LabelSettings.new()
 	ls.font_size = 28
-	ls.font_color = Color(1,1,1)
+	ls.font_color = Color(1, 1, 1)
 	ls.outline_size = 4
-	ls.outline_color = Color(0,0,0,0.85)
+	ls.outline_color = Color(0, 0, 0, 0.85)
 	timer_label.label_settings = ls
 	score_label.label_settings = ls
+	toilet_hint.label_settings = ls
 "
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ug0qv"]
@@ -158,15 +213,11 @@ bg_color = Color(0.721509, 0.585434, 0, 1)
 [node name="jeux" type="Node2D"]
 position = Vector2(250, 90)
 script = SubResource("GDScript_pjyst")
+SCORE_GOAL = 70
+next_scene = "uid://b0blaxescvms5"
 
-[node name="map" parent="." instance=ExtResource("1_8wb7p")]
-visible = false
-position = Vector2(-17, 6)
-scale = Vector2(2, 2)
-
-[node name="map2" parent="." instance=ExtResource("1_8wb7p")]
-position = Vector2(-17, 6)
-scale = Vector2(2, 2)
+[node name="Node2D" parent="." instance=ExtResource("1_8wb7p")]
+scale = Vector2(1.8, 1.8)
 
 [node name="player" parent="." groups=["Player"] instance=ExtResource("2_sethn")]
 scale = Vector2(0.92, 0.993)
@@ -307,3 +358,11 @@ text = "Respawn"
 [node name="Button_Next" type="Button" parent="CanvasLayer/WinMenu/Panel/VBoxContainer"]
 layout_mode = 2
 text = "Prochain Niveau"
+
+[node name="ToiletHint" type="Label" parent="CanvasLayer"]
+visible = false
+offset_left = 437.0
+offset_top = 279.0
+offset_right = 680.0
+offset_bottom = 302.0
+text = "Appuyez sur \"C\" pour faire caca"
