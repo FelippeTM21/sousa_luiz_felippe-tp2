@@ -19,6 +19,8 @@ script/source = "extends Node
 @onready var pee_gauge: ProgressBar = $CanvasLayer/PeeGauge
 @onready var score_label: Label = $CanvasLayer/ScoreLabel
 @onready var toilet_hint: Label = $CanvasLayer/ToiletHint
+@onready var quest_label: Label = $CanvasLayer/QuestLabel
+@onready var start_hint_label: Label = $CanvasLayer/StartHintLabel
 
 var player: Node = null
 var game_timer: Timer
@@ -29,8 +31,13 @@ var door_unlocked: bool = false
 var door_layer: TileMapLayer = null
 var toilet_layer: TileMapLayer = null
 
+# start hint state
+var start_hint_active: bool = false
+var start_hint_time_left: float = 0.0
+var start_hint_blink_accum: float = 0.0
+
 func _ready() -> void:
-	
+	# Menus
 	if pause_menu:
 		pause_menu.resume_requested.connect(_resume_game)
 		pause_menu.restart_requested.connect(_restart_game)
@@ -42,7 +49,7 @@ func _ready() -> void:
 		win_menu.respawn_requested.connect(_restart_game)
 		win_menu.next_requested.connect(_on_next_level_requested)
 
-	
+	# Timer
 	game_timer = Timer.new()
 	game_timer.one_shot = false
 	game_timer.wait_time = 1.0
@@ -52,17 +59,31 @@ func _ready() -> void:
 	_update_timer_label()
 
 	_style_hud()
-	toilet_hint.visible = false
+
+	if toilet_hint:
+		toilet_hint.visible = false
+	if quest_label:
+		quest_label.visible = false
+
+	# start hint setup
+	if start_hint_label:
+		start_hint_label.text = \"Appuyez sur \\\"P\\\" pour faire pipi sur les arbres\"
+		start_hint_label.visible = true
+		start_hint_active = true
+		start_hint_time_left = 5.0
+		start_hint_blink_accum = 0.0
 
 	door_layer = get_tree().get_first_node_in_group(\"door_layer\") as TileMapLayer
 	toilet_layer = get_tree().get_first_node_in_group(\"toilet_layer\") as TileMapLayer
 
 	_find_player_and_hook()
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if player == null:
 		_find_player_and_hook()
+
 	_check_toilet_hint()
+	_update_start_hint(delta)
 
 func _find_player_and_hook() -> void:
 	if player != null:
@@ -73,7 +94,6 @@ func _find_player_and_hook() -> void:
 		player = get_tree().current_scene.find_child(\"CharacterBody2D\", true, false)
 
 	if player:
-		
 		pee_gauge.min_value = 0
 		pee_gauge.max_value = 100
 		if \"pee_amount\" in player:
@@ -81,7 +101,6 @@ func _find_player_and_hook() -> void:
 		if player.has_signal(\"pee_amount_changed\"):
 			player.connect(\"pee_amount_changed\", _on_pee_amount_changed)
 
-		
 		var s: int = 0
 		if \"score\" in player:
 			s = player.score
@@ -89,7 +108,6 @@ func _find_player_and_hook() -> void:
 		if player.has_signal(\"score_changed\"):
 			player.connect(\"score_changed\", _on_score_changed)
 
-		
 		if player.has_signal(\"toilet_finished\"):
 			player.connect(\"toilet_finished\", _on_toilet_finished)
 
@@ -104,7 +122,11 @@ func _on_score_changed(s: int) -> void:
 func _unlock_door() -> void:
 	door_unlocked = true
 	if door_layer and door_layer.has_method(\"clear\"):
-		door_layer.clear() 
+		door_layer.clear()
+
+	if quest_label:
+		quest_label.visible = true
+		quest_label.text = \"Trouvez la toilette\"
 
 func _on_timer_tick() -> void:
 	time_left -= 1.0
@@ -145,6 +167,10 @@ func _update_score_label(s: int) -> void:
 	score_label.text = \"%d / %d\" % [s, SCORE_GOAL]
 
 func _unhandled_input(event: InputEvent) -> void:
+	# hide \"Trouvez la toilette\" when pressing C
+	if Input.is_action_just_pressed(\"use_toilet\") and quest_label:
+		quest_label.visible = false
+
 	if Input.is_action_just_pressed(\"ui_cancel\"):
 		if get_tree().paused:
 			_resume_game()
@@ -168,7 +194,13 @@ func _set_hud_visible(v: bool) -> void:
 	pee_gauge.visible = v
 	score_label.visible = v
 	if not v:
-		toilet_hint.visible = false
+		if toilet_hint:
+			toilet_hint.visible = false
+		if quest_label:
+			quest_label.visible = false
+		if start_hint_label:
+			start_hint_label.visible = false
+		start_hint_active = false
 
 func _restart_game() -> void:
 	get_tree().paused = false
@@ -180,37 +212,53 @@ func _on_next_level_requested() -> void:
 		get_tree().change_scene_to_file(next_scene)
 
 func _on_toilet_finished() -> void:
-	
 	if next_scene != \"\":
 		get_tree().paused = false
 		get_tree().change_scene_to_file(next_scene)
 	else:
-		
 		if not has_won:
 			_trigger_win()
 
 
+func _update_start_hint(delta: float) -> void:
+	if not start_hint_active or start_hint_label == null:
+		return
+
+	start_hint_time_left -= delta
+	start_hint_blink_accum += delta
+
+	if start_hint_time_left <= 0.0:
+		start_hint_active = false
+		start_hint_label.visible = false
+		return
+
+	if start_hint_blink_accum >= 0.4:
+		start_hint_blink_accum = 0.0
+		start_hint_label.visible = not start_hint_label.visible
+
 
 func _check_toilet_hint() -> void:
 	if player == null or not door_unlocked or toilet_layer == null:
-		toilet_hint.visible = false
+		if toilet_hint:
+			toilet_hint.visible = false
 		return
 
 	if \"using_toilet\" in player and player.using_toilet:
-		toilet_hint.visible = false
+		if toilet_hint:
+			toilet_hint.visible = false
 		return
 
 	var player_pos: Vector2 = player.global_position
 	var map_pos: Vector2i = toilet_layer.local_to_map(toilet_layer.to_local(player_pos))
 	var tile_data: Variant = toilet_layer.get_cell_tile_data(map_pos)
 
-	if tile_data != null:
+	if tile_data != null and toilet_hint:
 		toilet_hint.visible = true
-		toilet_hint.text = \"Appuyez sur C\"
-	else:
+		toilet_hint.text = \"Appuyer sur C\"
+	elif toilet_hint:
 		toilet_hint.visible = false
 
-# ---------- HUD STYLE ----------
+
 func _style_hud() -> void:
 	var ls := LabelSettings.new()
 	ls.font_size = 28
@@ -219,7 +267,19 @@ func _style_hud() -> void:
 	ls.outline_color = Color(0, 0, 0, 0.85)
 	timer_label.label_settings = ls
 	score_label.label_settings = ls
-	toilet_hint.label_settings = ls
+	if toilet_hint:
+		toilet_hint.label_settings = ls
+	if quest_label:
+		quest_label.label_settings = ls
+
+	
+	if start_hint_label:
+		var ls_big := LabelSettings.new()
+		ls_big.font_size = 34
+		ls_big.font_color = Color(1, 1, 1)
+		ls_big.outline_size = 4
+		ls_big.outline_color = Color(0, 0, 0, 0.9)
+		start_hint_label.label_settings = ls_big
 "
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ug0qv"]
@@ -423,3 +483,26 @@ offset_top = 239.0
 offset_right = 605.0
 offset_bottom = 262.0
 text = "Appuyez sur \"C\" "
+
+[node name="QuestLabel" type="Label" parent="CanvasLayer"]
+visible = false
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -20.0
+offset_right = 20.0
+offset_bottom = 23.0
+grow_horizontal = 2
+
+[node name="StartHintLabel" type="Label" parent="CanvasLayer"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -11.5
+offset_right = 20.0
+offset_bottom = 11.5
+grow_horizontal = 2
+grow_vertical = 2
