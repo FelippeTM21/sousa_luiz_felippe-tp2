@@ -73,7 +73,7 @@ func _find_player_and_hook() -> void:
 		player = get_tree().current_scene.find_child(\"CharacterBody2D\", true, false)
 
 	if player:
-		# Pee gauge
+		
 		pee_gauge.min_value = 0
 		pee_gauge.max_value = 100
 		if \"pee_amount\" in player:
@@ -81,7 +81,7 @@ func _find_player_and_hook() -> void:
 		if player.has_signal(\"pee_amount_changed\"):
 			player.connect(\"pee_amount_changed\", _on_pee_amount_changed)
 
-		# Score
+		
 		var s: int = 0
 		if \"score\" in player:
 			s = player.score
@@ -89,7 +89,7 @@ func _find_player_and_hook() -> void:
 		if player.has_signal(\"score_changed\"):
 			player.connect(\"score_changed\", _on_score_changed)
 
-		# Toilet finished → win
+		
 		if player.has_signal(\"toilet_finished\"):
 			player.connect(\"toilet_finished\", _on_toilet_finished)
 
@@ -104,7 +104,7 @@ func _on_score_changed(s: int) -> void:
 func _unlock_door() -> void:
 	door_unlocked = true
 	if door_layer and door_layer.has_method(\"clear\"):
-		door_layer.clear() # remove all door tiles
+		door_layer.clear() 
 
 func _on_timer_tick() -> void:
 	time_left -= 1.0
@@ -142,7 +142,7 @@ func _update_timer_label() -> void:
 	timer_label.text = \"%d:%02d\" % [minutes, seconds]
 
 func _update_score_label(s: int) -> void:
-	score_label.text = \"⭐ %d / %d\" % [s, SCORE_GOAL]
+	score_label.text = \"%d / %d\" % [s, SCORE_GOAL]
 
 func _unhandled_input(event: InputEvent) -> void:
 	if Input.is_action_just_pressed(\"ui_cancel\"):
@@ -190,7 +190,7 @@ func _on_toilet_finished() -> void:
 			_trigger_win()
 
 
-# ---------- TOILET HINT ----------
+
 func _check_toilet_hint() -> void:
 	if player == null or not door_unlocked or toilet_layer == null:
 		toilet_hint.visible = false
@@ -206,7 +206,7 @@ func _check_toilet_hint() -> void:
 
 	if tile_data != null:
 		toilet_hint.visible = true
-		toilet_hint.text = \"Appuyer sur C pour faire caca\"
+		toilet_hint.text = \"Appuyez sur C\"
 	else:
 		toilet_hint.visible = false
 

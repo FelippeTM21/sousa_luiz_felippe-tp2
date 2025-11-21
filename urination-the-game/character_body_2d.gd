@@ -156,7 +156,7 @@ func _physics_process(delta: float) -> void:
 			"droite":
 				mat.direction = Vector3(1, 0, 0)
 
-	# Drain pee while peeing
+	
 	if pee_particles.emitting:
 		var old := pee_amount
 		pee_amount = clamp(pee_amount - pee_drain_rate * delta, 0.0, PEE_MAX)
