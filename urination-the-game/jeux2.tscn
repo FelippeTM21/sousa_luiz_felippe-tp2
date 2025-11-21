@@ -104,7 +104,7 @@ func _on_score_changed(s: int) -> void:
 func _unlock_door() -> void:
 	door_unlocked = true
 	if door_layer and door_layer.has_method(\"clear\"):
-		door_layer.clear() # remove all door tiles
+		door_layer.clear()
 
 func _on_timer_tick() -> void:
 	time_left -= 1.0
@@ -142,7 +142,7 @@ func _update_timer_label() -> void:
 	timer_label.text = \"%d:%02d\" % [minutes, seconds]
 
 func _update_score_label(s: int) -> void:
-	score_label.text = \"⭐ %d / %d\" % [s, SCORE_GOAL]
+	score_label.text = \"%d / %d\" % [s, SCORE_GOAL]
 
 func _unhandled_input(event: InputEvent) -> void:
 	if Input.is_action_just_pressed(\"ui_cancel\"):
@@ -183,7 +183,7 @@ func _on_toilet_finished() -> void:
 	if not has_won:
 		_trigger_win()
 
-# ---------- TOILET HINT ----------
+
 func _check_toilet_hint() -> void:
 	if player == null or not door_unlocked or toilet_layer == null:
 		toilet_hint.visible = false
