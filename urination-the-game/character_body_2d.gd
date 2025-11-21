@@ -18,17 +18,17 @@ var speed := SPEED_BASE
 var speed_boost := 1.15
 var boost_seconds := 60.0
 
-# Pee gauge
+# jauge
 const PEE_MAX := 100.0
 var pee_amount := 50.0
 var pee_drain_rate := 20.0
 var pee_gain_per_drink := 30.0
 
-# Particles speed scale
+# vitesse piss
 var pee_speed_scale_base := 1.0
 var pee_speed_scale_boost := 1.6
 
-# Layers
+
 @export var items_layer_path: NodePath
 @onready var items_layer: TileMapLayer = get_tree().get_first_node_in_group("items_layer")
 @onready var trees_layer: TileMapLayer = get_tree().get_first_node_in_group("trees_layer")
@@ -40,16 +40,16 @@ var zoom_peeing  := Vector2(1.4, 1.4)
 var _zoom_tween: Tween
 var direction_name := "bas"
 
-# Score
+
 var score: int = 0
 
-# Pee→tree hit accumulation
+
 var _pee_hit_accum := 0.0
 var _points_per_chunk := 1
 var _seconds_per_point := 0.30
 var _hit_distance := 18.0
 
-# Toilet state
+
 var using_toilet := false
 
 func _ready() -> void:
@@ -77,13 +77,13 @@ func _ready() -> void:
 	score_changed.emit(score)
 
 func _unhandled_input(event: InputEvent) -> void:
-	# Use toilet
+	
 	if Input.is_action_just_pressed("use_toilet"):
 		_try_use_toilet()
 		if using_toilet:
 			return
 
-	# Don’t allow peeing controls while on toilet
+	
 	if using_toilet:
 		return
 
@@ -116,7 +116,7 @@ func _stop_peeing() -> void:
 		pee_sound.stop()
 
 func _physics_process(delta: float) -> void:
-	# If on toilet, lock in place
+
 	if using_toilet:
 		velocity = Vector2.ZERO
 		animation.play("animation_idle_" + direction_name)
@@ -135,7 +135,7 @@ func _physics_process(delta: float) -> void:
 		else:
 			direction_name = "haut" if direction.y < 0 else "bas"
 
-	# Animation
+	
 	if direction == Vector2.ZERO:
 		animation.play("animation_idle_" + direction_name)
 	else:
@@ -143,7 +143,7 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 
-	# Orient particles
+
 	var mat := pee_particles.process_material as ParticleProcessMaterial
 	if pee_particles.emitting and mat:
 		match direction_name:
@@ -166,10 +166,10 @@ func _physics_process(delta: float) -> void:
 			_set_zoom(false)
 			_stop_peeing()
 
-	# Score when peeing on trees
+
 	_check_tree_peeing(delta)
 
-	# Items (drinks)
+
 	_check_drink_pickup()
 
 func _front_point() -> Vector2:
@@ -217,23 +217,23 @@ func _check_drink_pickup() -> void:
 func _apply_speed_boost() -> void:
 	if drink_sound:
 		drink_sound.play()
-	# Move faster
+	
 	speed *= speed_boost
-	# Faster particles
+	
 	pee_particles.speed_scale = pee_speed_scale_boost
-	# Refill pee
+	
 	var old := pee_amount
 	pee_amount = clamp(pee_amount + pee_gain_per_drink, 0.0, PEE_MAX)
 	if pee_amount != old:
 		pee_amount_changed.emit(pee_amount)
-	# Start/refresh boost timer
+	
 	boost_timer.start(boost_seconds)
 
 func _on_boost_timeout() -> void:
 	speed = SPEED_BASE
 	pee_particles.speed_scale = pee_speed_scale_base
 
-# ---------- toilet logic ----------
+
 
 func _try_use_toilet() -> void:
 	if using_toilet:
@@ -246,11 +246,11 @@ func _try_use_toilet() -> void:
 	if tile_data == null:
 		return
 
-	# snap to tile center
+	
 	var local_pos: Vector2 = toilets_layer.map_to_local(map_pos)
 	global_position = toilets_layer.to_global(local_pos)
 
-	# lock
+	
 	using_toilet = true
 	velocity = Vector2.ZERO
 	_stop_peeing()
@@ -259,7 +259,7 @@ func _try_use_toilet() -> void:
 	if poop_sound:
 		poop_sound.play()
 
-	toilet_timer.start(3.0) # 3 seconds
+	toilet_timer.start(3.0) 
 
 func _on_toilet_timeout() -> void:
 	using_toilet = false

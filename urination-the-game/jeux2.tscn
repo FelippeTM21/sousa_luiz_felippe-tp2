@@ -26,15 +26,21 @@ var time_left: float = 60.0
 var has_won: bool = false
 
 var door_unlocked: bool = false
-var door_layer: Node = null
+var door_layer: TileMapLayer = null
+var toilet_layer: TileMapLayer = null
 
 func _ready() -> void:
 	# Menus
-	pause_menu.resume_requested.connect(_resume_game)
-	pause_menu.restart_requested.connect(_restart_game)
-	game_over_menu.respawn_requested.connect(_restart_game)
-	win_menu.respawn_requested.connect(_restart_game)
-	win_menu.next_requested.connect(_on_next_level_requested)
+	if pause_menu:
+		pause_menu.resume_requested.connect(_resume_game)
+		pause_menu.restart_requested.connect(_restart_game)
+
+	if game_over_menu:
+		game_over_menu.respawn_requested.connect(_restart_game)
+
+	if win_menu:
+		win_menu.respawn_requested.connect(_restart_game)
+		win_menu.next_requested.connect(_on_next_level_requested)
 
 	# Timer
 	game_timer = Timer.new()
@@ -48,7 +54,9 @@ func _ready() -> void:
 	_style_hud()
 	toilet_hint.visible = false
 
-	door_layer = get_tree().get_first_node_in_group(\"door_layer\")
+	door_layer = get_tree().get_first_node_in_group(\"door_layer\") as TileMapLayer
+	toilet_layer = get_tree().get_first_node_in_group(\"toilet_layer\") as TileMapLayer
+
 	_find_player_and_hook()
 
 func _process(_delta: float) -> void:
@@ -65,6 +73,7 @@ func _find_player_and_hook() -> void:
 		player = get_tree().current_scene.find_child(\"CharacterBody2D\", true, false)
 
 	if player:
+		# Pee gauge
 		pee_gauge.min_value = 0
 		pee_gauge.max_value = 100
 		if \"pee_amount\" in player:
@@ -72,6 +81,7 @@ func _find_player_and_hook() -> void:
 		if player.has_signal(\"pee_amount_changed\"):
 			player.connect(\"pee_amount_changed\", _on_pee_amount_changed)
 
+		# Score
 		var s: int = 0
 		if \"score\" in player:
 			s = player.score
@@ -79,6 +89,7 @@ func _find_player_and_hook() -> void:
 		if player.has_signal(\"score_changed\"):
 			player.connect(\"score_changed\", _on_score_changed)
 
+		# Toilet finished → win
 		if player.has_signal(\"toilet_finished\"):
 			player.connect(\"toilet_finished\", _on_toilet_finished)
 
@@ -114,14 +125,16 @@ func _is_won() -> bool:
 
 func _trigger_win() -> void:
 	has_won = true
-	get_tree().paused = true
 	_set_hud_visible(false)
-	win_menu.open()
+	if win_menu:
+		win_menu.open()
+	get_tree().paused = true
 
 func _show_game_over() -> void:
-	get_tree().paused = true
 	_set_hud_visible(false)
-	game_over_menu.open()
+	if game_over_menu:
+		game_over_menu.open()
+	get_tree().paused = true
 
 func _update_timer_label() -> void:
 	var minutes: int = int(time_left) / 60
@@ -131,7 +144,7 @@ func _update_timer_label() -> void:
 func _update_score_label(s: int) -> void:
 	score_label.text = \"⭐ %d / %d\" % [s, SCORE_GOAL]
 
-func _unhandled_input(_event: InputEvent) -> void:
+func _unhandled_input(event: InputEvent) -> void:
 	if Input.is_action_just_pressed(\"ui_cancel\"):
 		if get_tree().paused:
 			_resume_game()
@@ -140,11 +153,13 @@ func _unhandled_input(_event: InputEvent) -> void:
 
 func _pause_game() -> void:
 	get_tree().paused = true
-	pause_menu.open()
+	if pause_menu:
+		pause_menu.open()
 	_set_hud_visible(false)
 
 func _resume_game() -> void:
-	pause_menu.close()
+	if pause_menu:
+		pause_menu.close()
 	get_tree().paused = false
 	_set_hud_visible(true)
 
@@ -168,23 +183,16 @@ func _on_toilet_finished() -> void:
 	if not has_won:
 		_trigger_win()
 
-
+# ---------- TOILET HINT ----------
 func _check_toilet_hint() -> void:
-
-	if player == null or not door_unlocked:
+	if player == null or not door_unlocked or toilet_layer == null:
 		toilet_hint.visible = false
 		return
+
 	if \"using_toilet\" in player and player.using_toilet:
 		toilet_hint.visible = false
 		return
 
-	
-	var toilet_layer := get_tree().get_first_node_in_group(\"toilet_layer\")
-	if toilet_layer == null:
-		toilet_hint.visible = false
-		return
-
-	
 	var player_pos: Vector2 = player.global_position
 	var map_pos: Vector2i = toilet_layer.local_to_map(toilet_layer.to_local(player_pos))
 	var tile_data: Variant = toilet_layer.get_cell_tile_data(map_pos)
@@ -195,7 +203,7 @@ func _check_toilet_hint() -> void:
 	else:
 		toilet_hint.visible = false
 
-
+# ---------- HUD STYLE ----------
 func _style_hud() -> void:
 	var ls := LabelSettings.new()
 	ls.font_size = 28
@@ -408,8 +416,8 @@ text = "Prochain Niveau"
 
 [node name="ToiletHint" type="Label" parent="CanvasLayer"]
 visible = false
-offset_left = 437.0
-offset_top = 279.0
-offset_right = 680.0
-offset_bottom = 302.0
+offset_left = 456.0
+offset_top = 257.0
+offset_right = 699.0
+offset_bottom = 280.0
 text = "Appuyez sur \"C\" pour faire caca"

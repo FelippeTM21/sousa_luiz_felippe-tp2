@@ -1,10 +1,8 @@
 extends Control
 
 signal respawn_requested
-signal next_requested
 
 @onready var btn_respawn: Button = $Panel/VBoxContainer/Button_Respawn
-@onready var btn_next: Button = $Panel/VBoxContainer/Button_Next
 
 func _ready() -> void:
 	visible = false
@@ -20,6 +18,3 @@ func close() -> void:
 
 func _on_respawn_pressed() -> void:
 	respawn_requested.emit()
-
-func _on_next_pressed() -> void:
-	next_requested.emit()

@@ -9,8 +9,8 @@ signal next_requested
 func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	btn_respawn.pressed.connect(func(): respawn_requested.emit())
-	btn_next.pressed.connect(func(): next_requested.emit())
+	btn_respawn.pressed.connect(_on_respawn_pressed)
+	btn_next.pressed.connect(_on_next_pressed)
 
 func open() -> void:
 	visible = true
@@ -18,3 +18,9 @@ func open() -> void:
 
 func close() -> void:
 	visible = false
+
+func _on_respawn_pressed() -> void:
+	respawn_requested.emit()
+
+func _on_next_pressed() -> void:
+	next_requested.emit()
