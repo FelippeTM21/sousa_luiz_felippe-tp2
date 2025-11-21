@@ -240,7 +240,7 @@ func _try_use_toilet() -> void:
 		return
 	if toilets_layer == null:
 		return
-	# check if standing on a toilet tile
+	
 	var map_pos: Vector2i = toilets_layer.local_to_map(toilets_layer.to_local(global_position))
 	var tile_data := toilets_layer.get_cell_tile_data(map_pos)
 	if tile_data == null:

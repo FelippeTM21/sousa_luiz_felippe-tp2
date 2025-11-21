@@ -30,7 +30,7 @@ var door_layer: TileMapLayer = null
 var toilet_layer: TileMapLayer = null
 
 func _ready() -> void:
-	# Menus
+	
 	if pause_menu:
 		pause_menu.resume_requested.connect(_resume_game)
 		pause_menu.restart_requested.connect(_restart_game)
@@ -42,7 +42,7 @@ func _ready() -> void:
 		win_menu.respawn_requested.connect(_restart_game)
 		win_menu.next_requested.connect(_on_next_level_requested)
 
-	# Timer
+	
 	game_timer = Timer.new()
 	game_timer.one_shot = false
 	game_timer.wait_time = 1.0
@@ -73,7 +73,7 @@ func _find_player_and_hook() -> void:
 		player = get_tree().current_scene.find_child(\"CharacterBody2D\", true, false)
 
 	if player:
-		# Pee gauge
+		
 		pee_gauge.min_value = 0
 		pee_gauge.max_value = 100
 		if \"pee_amount\" in player:
@@ -81,7 +81,7 @@ func _find_player_and_hook() -> void:
 		if player.has_signal(\"pee_amount_changed\"):
 			player.connect(\"pee_amount_changed\", _on_pee_amount_changed)
 
-		# Score
+		
 		var s: int = 0
 		if \"score\" in player:
 			s = player.score
@@ -89,7 +89,7 @@ func _find_player_and_hook() -> void:
 		if player.has_signal(\"score_changed\"):
 			player.connect(\"score_changed\", _on_score_changed)
 
-		# Toilet finished → win
+		
 		if player.has_signal(\"toilet_finished\"):
 			player.connect(\"toilet_finished\", _on_toilet_finished)
 
@@ -104,7 +104,7 @@ func _on_score_changed(s: int) -> void:
 func _unlock_door() -> void:
 	door_unlocked = true
 	if door_layer and door_layer.has_method(\"clear\"):
-		door_layer.clear()
+		door_layer.clear() 
 
 func _on_timer_tick() -> void:
 	time_left -= 1.0
@@ -180,8 +180,15 @@ func _on_next_level_requested() -> void:
 		get_tree().change_scene_to_file(next_scene)
 
 func _on_toilet_finished() -> void:
-	if not has_won:
-		_trigger_win()
+	
+	if next_scene != \"\":
+		get_tree().paused = false
+		get_tree().change_scene_to_file(next_scene)
+	else:
+		
+		if not has_won:
+			_trigger_win()
+
 
 
 func _check_toilet_hint() -> void:
@@ -221,8 +228,6 @@ bg_color = Color(0.721509, 0.585434, 0, 1)
 [node name="jeux" type="Node2D"]
 position = Vector2(250, 90)
 script = SubResource("GDScript_pjyst")
-SCORE_GOAL = 70
-next_scene = "uid://b0blaxescvms5"
 
 [node name="Node2D" parent="." instance=ExtResource("1_8wb7p")]
 scale = Vector2(1.8, 1.8)
@@ -337,7 +342,7 @@ layout_mode = 2
 text = "Respawn"
 
 [node name="TimerLabel" type="Label" parent="CanvasLayer"]
-offset_left = 434.0
+offset_left = 514.0
 offset_top = 553.0
 offset_right = 689.0
 offset_bottom = 589.0
@@ -358,7 +363,7 @@ grow_vertical = 2
 theme_override_styles/background = SubResource("StyleBoxFlat_ug0qv")
 
 [node name="ScoreLabel" type="Label" parent="CanvasLayer"]
-offset_left = 511.0
+offset_left = 565.0
 offset_top = 83.0
 offset_right = 739.0
 offset_bottom = 148.0
